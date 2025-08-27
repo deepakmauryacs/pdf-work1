@@ -85,10 +85,18 @@
       const formData = new FormData(e.target);
       const res = await fetch(e.target.action, {
         method: 'POST',
-        headers: { 'X-CSRF-TOKEN': csrfToken },
+        headers: {
+          'X-CSRF-TOKEN': csrfToken,
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         body: formData
       });
       const data = await res.json();
+      if (!res.ok) {
+        alert(Object.values(data.errors || { error: 'Upload failed' })[0]);
+        return;
+      }
       document.getElementById('uploadResult').textContent = JSON.stringify(data, null, 2);
     });
 
@@ -115,10 +123,18 @@
 
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'X-CSRF-TOKEN': csrfToken },
+        headers: {
+          'X-CSRF-TOKEN': csrfToken,
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         body
       });
       const data = await res.json();
+      if (!res.ok) {
+        alert(Object.values(data.errors || { error: 'Link creation failed' })[0]);
+        return;
+      }
       document.getElementById('result').textContent = JSON.stringify(data, null, 2);
     });
   </script>

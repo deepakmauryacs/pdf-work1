@@ -132,7 +132,7 @@ class DocumentController extends Controller
         return response()->json([
             'view_url'         => route('documents.viewer', ['id' => $doc->id, 's' => $link->slug]),
             'download_allowed' => (bool) $link->allow_download,
-            'expires_at'       => $link->expires_at?->toIso8601String(),
+            'expires_at'       => $link->expires_at?->format('d-m-Y'),
         ]);
     }
 
@@ -140,7 +140,8 @@ class DocumentController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimetypes:application/pdf|file|max:51200', // 50MB
+            'file'          => 'required|mimetypes:application/pdf|file|max:51200', // 50MB
+            'allow_download'=> 'sometimes|boolean',
         ]);
 
         $file = $request->file('file');
