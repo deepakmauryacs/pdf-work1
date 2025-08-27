@@ -192,15 +192,19 @@
       position: relative;
     }
     .canvas-wrap{
-      display:grid; 
-      place-items:center; 
-      overflow:auto; 
+      overflow:auto;
       padding:20px;
       position: relative;
     }
-    canvas#pdfCanvas{
-      background:#0a0f1e; 
-      border-radius:16px; 
+    #pdfContainer{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:20px;
+    }
+    #pdfContainer canvas{
+      background:#0a0f1e;
+      border-radius:16px;
       box-shadow:0 0 0 1px var(--border), 0 8px 30px rgba(0,0,0,.3);
       max-width:100%;
       transition: var(--transition);
@@ -426,7 +430,10 @@
   </style>
 </head>
 <body class="viewer theme--dark" oncontextmenu="event.preventDefault();">
-<div class="viewer-shell">
+<div class="row">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="viewer-shell">
 
   {{-- TOPBAR (Glass, premium) --}}
   <div class="topbar">
@@ -528,7 +535,7 @@
       </div>
       
       <div id="canvasWrap" class="canvas-wrap">
-        <canvas id="pdfCanvas"></canvas>
+        <div id="pdfContainer"></div>
       </div>
       
       <div class="bottombar">
@@ -546,6 +553,10 @@
     <i class="toast__icon bi"></i>
     <div class="toast__message"></div>
   </div>
+
+</div>
+    </div>
+  </div>
 </div>
 
 {{-- pdf.js core (no viewer.html) --}}
@@ -561,8 +572,7 @@
 
   // Elements
   const wrap = document.getElementById('canvasWrap');
-  const canvas = document.getElementById('pdfCanvas');
-  const ctx = canvas.getContext('2d', { alpha:false, desynchronized:true });
+  const container = document.getElementById('pdfContainer');
   const loader = document.getElementById('loader');
   const toast = document.getElementById('toast');
   const docStatus = document.getElementById('docStatus');
@@ -594,7 +604,7 @@
   const qCount = document.getElementById('qCount');
 
   // State
-  let pdfDoc = null, pageNum = 1, scale = 1.15, rotation = 0, rendering = false, pending = null;
+  let pdfDoc = null, pageNum = 1, scale = 1.15, rotation = 0;
   let pageTexts = [];     // cache of page text
   let searchHits = [];    // [{page, index}]
   let hitIndex = -1;
@@ -651,60 +661,55 @@
     scale = clamp(w / view.width, 0.4, 4);
   }
 
-  async function renderPage(num){
-    rendering = true;
+  async function renderAllPages(){
     setLoading(true);
-    
-    try {
-      const page = await pdfDoc.getPage(num);
-      if (renderPage._fitOnce) { fitWidth(page); renderPage._fitOnce = false; }
-
-      const viewport = page.getViewport({ scale, rotation });
-      const ratio = dpr();
-      canvas.width  = Math.floor(viewport.width  * ratio);
-      canvas.height = Math.floor(viewport.height * ratio);
-      canvas.style.width  = Math.floor(viewport.width) + 'px';
-      canvas.style.height = Math.floor(viewport.height) + 'px';
-      ctx.setTransform(ratio,0,0,ratio,0,0);
-
-      // Clear canvas with background color
-      ctx.fillStyle = '#0a0f1e';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      const task = page.render({ canvasContext: ctx, viewport });
-      await task.promise;
-      
-      // Highlight search result if active
-      if (currentSearchMatch && currentSearchMatch.page === num) {
-        // This would require more complex text layer implementation
-        // For simplicity, we're just showing a toast
-        showToast(`Match ${hitIndex + 1} of ${searchHits.length}`, 'success');
+    container.innerHTML = '';
+    for(let num=1; num<=pdfDoc.numPages; num++){
+      try{
+        const page = await pdfDoc.getPage(num);
+        if(renderAllPages._fitOnce && num===1){ fitWidth(page); renderAllPages._fitOnce = false; }
+        const viewport = page.getViewport({ scale, rotation });
+        const ratio = dpr();
+        const canvas = document.createElement('canvas');
+        canvas.width  = Math.floor(viewport.width * ratio);
+        canvas.height = Math.floor(viewport.height * ratio);
+        canvas.style.width  = Math.floor(viewport.width) + 'px';
+        canvas.style.height = Math.floor(viewport.height) + 'px';
+        canvas.dataset.pageNumber = num;
+        const ctx = canvas.getContext('2d', { alpha:false, desynchronized:true });
+        ctx.setTransform(ratio,0,0,ratio,0,0);
+        ctx.fillStyle = '#0a0f1e';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        container.appendChild(canvas);
+      }catch(error){
+        console.error('Error rendering page:', error);
       }
-      
-      rendering = false;
-      setLoading(false);
-      
-      if (pending !== null){ 
-        const n = pending; 
-        pending = null; 
-        renderPage(n); 
-      }
-      
-      updateUI();
-    } catch (error) {
-      console.error('Error rendering page:', error);
-      setLoading(false);
-      showToast('Error loading page', 'error');
+    }
+    setLoading(false);
+    updateUI();
+  }
+
+  function scrollToPage(p){
+    const canvas = container.querySelector(`canvas[data-page-number="${p}"]`);
+    if(canvas){
+      wrap.scrollTo({ top: canvas.offsetTop - 10, behavior: 'smooth' });
     }
   }
-  
-  function queueRender(n){ 
-    if(rendering) {
-      pending = n; 
-    } else {
-      renderPage(n);
-    }
+
+  function updateCurrentPage(){
+    const center = wrap.scrollTop + wrap.clientHeight / 2;
+    const canvases = container.querySelectorAll('canvas');
+    let current = pageNum;
+    canvases.forEach((c, i)=>{
+      const top = c.offsetTop;
+      const bottom = top + c.offsetHeight;
+      if(center >= top && center < bottom){ current = i+1; }
+    });
+    pageNum = current;
+    updateUI();
   }
+  wrap.addEventListener('scroll', updateCurrentPage);
 
   // Thumbnails
   async function buildThumbnails(){
@@ -748,9 +753,9 @@
         console.error('Error generating thumbnail:', error);
       }
 
-      item.addEventListener('click', ()=>{ 
-        pageNum = p; 
-        queueRender(pageNum); 
+      item.addEventListener('click', ()=>{
+        pageNum = p;
+        scrollToPage(pageNum);
         if (window.innerWidth < 992) {
           closeSidebar();
         }
@@ -796,8 +801,8 @@
       if (searchHits.length){
         hitIndex = 0;
         currentSearchMatch = searchHits[0];
-        pageNum = searchHits[0].page; 
-        queueRender(pageNum);
+        pageNum = searchHits[0].page;
+        scrollToPage(pageNum);
         qCount.textContent = `${hitIndex+1}/${searchHits.length}`;
         showToast(`Found ${searchHits.length} matches`, 'success');
       } else {
@@ -816,8 +821,8 @@
     if (!searchHits.length) return;
     hitIndex = (hitIndex + delta + searchHits.length) % searchHits.length;
     currentSearchMatch = searchHits[hitIndex];
-    pageNum = searchHits[hitIndex].page; 
-    queueRender(pageNum);
+    pageNum = searchHits[hitIndex].page;
+    scrollToPage(pageNum);
     qCount.textContent = `${hitIndex+1}/${searchHits.length}`;
   }
 
@@ -862,10 +867,10 @@
   }
 
   // Controls
-  zoomInBtn.onclick = ()=>{ scale = clamp(scale + 0.15, 0.4, 6); queueRender(pageNum); };
-  zoomOutBtn.onclick= ()=>{ scale = clamp(scale - 0.15, 0.3, 6); queueRender(pageNum); };
-  fitBtn.onclick    = ()=>{ renderPage._fitOnce = true; queueRender(pageNum); };
-  rotateBtn.onclick = ()=>{ rotation = (rotation + 90) % 360; queueRender(pageNum); };
+  zoomInBtn.onclick = ()=>{ scale = clamp(scale + 0.15, 0.4, 6); renderAllPages(); scrollToPage(pageNum); };
+  zoomOutBtn.onclick= ()=>{ scale = clamp(scale - 0.15, 0.3, 6); renderAllPages(); scrollToPage(pageNum); };
+  fitBtn.onclick    = ()=>{ renderAllPages._fitOnce = true; renderAllPages(); scrollToPage(pageNum); };
+  rotateBtn.onclick = ()=>{ rotation = (rotation + 90) % 360; renderAllPages(); scrollToPage(pageNum); };
   fsBtn.onclick     = ()=>{ 
     const el = document.documentElement; 
     if(!document.fullscreenElement){ 
@@ -875,10 +880,10 @@
     } 
   };
   
-  pageNumEl.onchange= (e)=>{ 
-    const v = clamp(parseInt(e.target.value||'1',10),1,pdfDoc.numPages); 
-    pageNum=v; 
-    queueRender(pageNum); 
+  pageNumEl.onchange= (e)=>{
+    const v = clamp(parseInt(e.target.value||'1',10),1,pdfDoc.numPages);
+    pageNum=v;
+    scrollToPage(pageNum);
   };
 
   // Theme buttons
@@ -908,11 +913,11 @@
       switch(e.key) {
         case 'ArrowRight':
         case 'PageDown':
-          if(pageNum < pdfDoc.numPages){ pageNum++; queueRender(pageNum); }
+          if(pageNum < pdfDoc.numPages){ pageNum++; scrollToPage(pageNum); }
           break;
         case 'ArrowLeft':
         case 'PageUp':
-          if(pageNum > 1){ pageNum--; queueRender(pageNum); }
+          if(pageNum > 1){ pageNum--; scrollToPage(pageNum); }
           break;
         case '+':
           zoomInBtn.click();
@@ -949,9 +954,10 @@
   let rzTimer=null;
   window.addEventListener('resize', ()=>{
     clearTimeout(rzTimer);
-    rzTimer=setTimeout(()=>{ 
-      renderPage._fitOnce = true; 
-      queueRender(pageNum); 
+    rzTimer=setTimeout(()=>{
+      renderAllPages._fitOnce = true;
+      renderAllPages();
+      scrollToPage(pageNum);
     }, 200);
   });
 
@@ -968,8 +974,9 @@
       document.getElementById('docPageCount').textContent = pdfDoc.numPages;
       
       await buildThumbnails();
-      renderPage._fitOnce = true;
-      await renderPage(pageNum);
+      renderAllPages._fitOnce = true;
+      await renderAllPages();
+      scrollToPage(pageNum);
       updateUI();
       
       // Apply saved theme
