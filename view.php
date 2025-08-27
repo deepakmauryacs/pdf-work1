@@ -462,9 +462,6 @@ $token = token_for($link['id'], $link['doc_id']);
       menu.classList.remove('show');
     });
 
-    // Backdrop click closes drawer on mobile
-    document.getElementById('drawerBackdrop')
-      .addEventListener('click', ()=> document.querySelector('.shell').classList.add('collapsed'));
   })();
 </script>
 </body>
