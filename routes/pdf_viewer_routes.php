@@ -10,9 +10,21 @@ Route::get('/docs', [DocumentController::class, 'uploaderForm'])->name('document
 Route::post('/documents/upload', [DocumentController::class, 'upload'])->name('documents.upload');
 
 // Viewer + stream + download
-Route::get('/documents/{id}/view', [DocumentController::class, 'viewer'])->name('documents.viewer');
-Route::get('/documents/{id}/stream', [DocumentController::class, 'stream'])->name('documents.stream');
-Route::get('/documents/{id}/download', [DocumentController::class, 'download'])->name('documents.download');
+Route::get('/documents/{id}/view', [DocumentController::class, 'viewer'])
+    ->name('documents.viewer');
+
+Route::post('/documents/{id}/stream-data', [DocumentController::class, 'streamData'])
+    ->name('documents.stream.data');
+Route::match(['GET', 'PUT', 'PATCH', 'DELETE'], '/documents/{id}/stream-data', function () {
+    abort(403, 'FORBIDDEN ACCESS');
+});
+
+Route::post('/documents/{id}/download', [DocumentController::class, 'download'])
+    ->name('documents.download');
+Route::match(['GET', 'PUT', 'PATCH', 'DELETE'], '/documents/{id}/download', function () {
+    abort(403, 'FORBIDDEN ACCESS');
+});
 
 // Create share link
 Route::post('/documents/{id}/link', [DocumentController::class, 'createLink'])->name('documents.link.create');
+

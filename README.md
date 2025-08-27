@@ -19,7 +19,7 @@ php artisan migrate
 - Start your server: `php artisan serve`
 - Visit: `http://127.0.0.1:8000/docs`
   - Upload a PDF
-  - Create a link (set TTL=0 for never expire, toggle "Allow Download")
+  - Create a link (set TTL=0 for never expire, toggle "Allow Download"; expiry date uses dd-mm-yyyy format)
   - Open the `view_url` shown in results
   - If download is disabled, the ⬇ button is disabled and direct `download` route returns 403
 
@@ -30,8 +30,8 @@ php artisan migrate
 
 ## Endpoints
 - `GET /documents/{id}/view?s=TOKEN` → Viewer UI
-- `GET /documents/{id}/stream?s=TOKEN` → PDF bytes for pdf.js
-- `GET /documents/{id}/download?s=TOKEN` → Attachment (403 when not allowed)
+- `POST /documents/{id}/stream-data` (body: `s=TOKEN`, `nonce`) → PDF bytes for pdf.js
+- `POST /documents/{id}/download` (body: `s=TOKEN`) → Attachment (403 when not allowed)
 - `POST /documents/{id}/link` → JSON { view_url, stream_url, ... }
 - `POST /documents/upload` → Upload PDF (form on /docs adds CSRF automatically)
 
