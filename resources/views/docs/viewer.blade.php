@@ -114,9 +114,12 @@
       .side--open{transform:translateX(0)}
     }
     @media (max-width: 640px){
-      .topbar__shell{flex-direction:column; align-items:stretch; gap:10px}
+      .topbar{top:0; margin:0}
+      .topbar__shell{flex-direction:column; align-items:stretch; gap:10px; border-radius:0}
       .controls{justify-content:space-between}
       .filemeta__title{max-width:80vw}
+      .canvas-wrap{padding:0}
+      canvas#pdfCanvas{border-radius:0; box-shadow:none}
     }
   </style>
 </head>
