@@ -18,22 +18,10 @@ if ((int)$link['allow_view'] !== 1) { http_response_code(403); exit('Viewing dis
 
 $token = token_for($link['id'], $link['doc_id']);
 
-// Simple iframe fallback for mobile browsers
+// On mobile devices open the PDF directly using the browser's native viewer.
 $isMobile = isset($_SERVER['HTTP_USER_AGENT']) && preg_match('/Mobile|Android|iP(hone|od|ad)/i', $_SERVER['HTTP_USER_AGENT']);
 if ($isMobile) {
-  ?>
-  <!doctype html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-    <title><?= htmlspecialchars($link['original_name']) ?></title>
-  </head>
-  <body style="margin:0">
-    <iframe src="<?= APP_BASE_URL ?>/api/pdf.php?tok=<?= urlencode($token) ?>" style="border:0;width:100%;height:100vh;"></iframe>
-  </body>
-  </html>
-  <?php
+  header('Location: ' . APP_BASE_URL . '/api/pdf.php?tok=' . urlencode($token));
   exit;
 }
 ?>
