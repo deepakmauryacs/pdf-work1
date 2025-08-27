@@ -215,10 +215,14 @@ function scheduleRerender(){
     setTimeout(()=>{ forceFullRerender(true); scrollToPage(currentPage); }, 120); // late pass
   }
   // start collapsed by default so sidebar stays closed on first load, especially on mobile
-  let collapsed=true;
+  let collapsed = true;
   try {
-    const saved=localStorage.getItem('pdfv_sidebar');
-    if(saved!==null) collapsed = (saved==='1');
+    const saved = localStorage.getItem('pdfv_sidebar');
+    // Only respect the saved state on wider screens so the sidebar doesn't
+    // cover the document on mobile devices.
+    if (saved !== null && window.matchMedia('(min-width: 768px)').matches) {
+      collapsed = (saved === '1');
+    }
   } catch {}
   // apply initial (does nothing harmful before pages exist)
   apply(collapsed);
