@@ -414,6 +414,14 @@
         padding: 10px;
       }
     }
+    @media (max-width: 480px){
+      .topbar{top:8px;margin:0 8px 8px;}
+      .topbar__shell{padding:8px;gap:8px;}
+      .controls{gap:6px;}
+      .canvas-wrap{padding:12px;}
+      .bottombar{padding:8px 12px;gap:8px;}
+      .bottombar .badge:first-child{display:none;}
+    }
 
     /* Fullscreen styles */
     body:fullscreen .topbar,
