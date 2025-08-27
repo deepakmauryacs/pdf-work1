@@ -204,12 +204,20 @@
       align-items:center;
       gap:20px;
     }
+    #pdfContainer .page{
+      position:relative;
+    }
     #pdfContainer canvas{
       background:#0a0f1e;
       border-radius:16px;
       box-shadow:0 0 0 1px var(--border), 0 8px 30px rgba(0,0,0,.3);
       max-width:100%;
       transition: var(--transition);
+    }
+    .textLayer{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
     }
 
     .bottombar{
@@ -615,14 +623,13 @@
 
   // State
   let pdfDoc = null, pageNum = 1, scale = 1.15, rotation = 0;
-  let pageTexts = [];     // cache of page text
-  let searchHits = [];    // [{page, index}]
+  let searchHits = [];    // [{page, element}]
   let hitIndex = -1;
-  let currentSearchMatch = null;
   let fileSize = 0;
 
   const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
   const dpr = () => (window.devicePixelRatio || 1);
+  const escapeRegExp = s => s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 
   // Show/hide loader
   function setLoading(loading) {
@@ -680,18 +687,32 @@
         if(renderAllPages._fitOnce && num===1){ fitWidth(page); renderAllPages._fitOnce = false; }
         const viewport = page.getViewport({ scale, rotation });
         const ratio = dpr();
+
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'page';
+        pageDiv.dataset.pageNumber = num;
+
         const canvas = document.createElement('canvas');
         canvas.width  = Math.floor(viewport.width * ratio);
         canvas.height = Math.floor(viewport.height * ratio);
         canvas.style.width  = Math.floor(viewport.width) + 'px';
         canvas.style.height = Math.floor(viewport.height) + 'px';
-        canvas.dataset.pageNumber = num;
         const ctx = canvas.getContext('2d', { alpha:false, desynchronized:true });
         ctx.setTransform(ratio,0,0,ratio,0,0);
         ctx.fillStyle = '#0a0f1e';
         ctx.fillRect(0,0,canvas.width,canvas.height);
         await page.render({ canvasContext: ctx, viewport }).promise;
-        container.appendChild(canvas);
+
+        const textLayerDiv = document.createElement('div');
+        textLayerDiv.className = 'textLayer';
+        textLayerDiv.style.width = canvas.style.width;
+        textLayerDiv.style.height = canvas.style.height;
+        const textContent = await page.getTextContent();
+        await pdfjsLib.renderTextLayer({ textContent, container: textLayerDiv, viewport }).promise;
+
+        pageDiv.appendChild(canvas);
+        pageDiv.appendChild(textLayerDiv);
+        container.appendChild(pageDiv);
       }catch(error){
         console.error('Error rendering page:', error);
       }
@@ -701,19 +722,19 @@
   }
 
   function scrollToPage(p){
-    const canvas = container.querySelector(`canvas[data-page-number="${p}"]`);
-    if(canvas){
-      wrap.scrollTo({ top: canvas.offsetTop - 10, behavior: 'smooth' });
+    const pageEl = container.querySelector(`.page[data-page-number="${p}"]`);
+    if(pageEl){
+      wrap.scrollTo({ top: pageEl.offsetTop - 10, behavior: 'smooth' });
     }
   }
 
   function updateCurrentPage(){
     const center = wrap.scrollTop + wrap.clientHeight / 2;
-    const canvases = container.querySelectorAll('canvas');
+    const pages = container.querySelectorAll('.page');
     let current = pageNum;
-    canvases.forEach((c, i)=>{
-      const top = c.offsetTop;
-      const bottom = top + c.offsetHeight;
+    pages.forEach((pEl, i)=>{
+      const top = pEl.offsetTop;
+      const bottom = top + pEl.offsetHeight;
       if(center >= top && center < bottom){ current = i+1; }
     });
     pageNum = current;
@@ -774,46 +795,57 @@
   }
 
   // Search
-  async function ensurePageText(p){
-    if (pageTexts[p]) return pageTexts[p];
-    const page = await pdfDoc.getPage(p);
-    const tc = await page.getTextContent();
-    const text = tc.items.map(x=>x.str).join(' ');
-    pageTexts[p] = text;
-    return text;
+  async function rebuildTextLayers(q = '', collect = false){
+    searchHits = [];
+    for(let p=1; p<=pdfDoc.numPages; p++){
+      const page = await pdfDoc.getPage(p);
+      const viewport = page.getViewport({ scale, rotation });
+      const pageDiv = container.querySelector(`.page[data-page-number="${p}"]`);
+      const textLayerDiv = pageDiv.querySelector('.textLayer');
+      textLayerDiv.style.width = Math.floor(viewport.width) + 'px';
+      textLayerDiv.style.height = Math.floor(viewport.height) + 'px';
+      textLayerDiv.innerHTML = '';
+      const textContent = await page.getTextContent();
+      await pdfjsLib.renderTextLayer({ textContent, container: textLayerDiv, viewport }).promise;
+
+      if (!q) continue;
+      const regex = new RegExp(escapeRegExp(q), 'gi');
+      textLayerDiv.querySelectorAll('span').forEach(span => {
+        const txt = span.textContent;
+        if (regex.test(txt)) {
+          span.innerHTML = txt.replace(regex, m => `<span class="highlight">${m}</span>`);
+        }
+      });
+      if (collect) {
+        textLayerDiv.querySelectorAll('.highlight').forEach(el => {
+          searchHits.push({ page: p, element: el });
+        });
+      }
+    }
   }
-  
+
   async function runSearch(q){
-    searchHits = []; 
     hitIndex = -1;
-    currentSearchMatch = null;
     qCount.textContent = '';
-    
+
     if (!q || q.trim().length < 2) {
+      await rebuildTextLayers();
       showToast('Enter at least 2 characters to search', 'error');
       return;
     }
 
     setLoading(true);
-    
     try {
-      for(let p=1; p<=pdfDoc.numPages; p++){
-        const t = (await ensurePageText(p)).toLowerCase();
-        const needle = q.toLowerCase();
-        let idx = t.indexOf(needle), seen=0;
-        while(idx !== -1 && seen < 50){
-          searchHits.push({page:p, index:idx});
-          idx = t.indexOf(needle, idx+needle.length);
-          seen++;
-        }
-      }
-      
+      await rebuildTextLayers(q, true);
       if (searchHits.length){
         hitIndex = 0;
-        currentSearchMatch = searchHits[0];
-        pageNum = searchHits[0].page;
+        const hit = searchHits[0];
+        pageNum = hit.page;
         scrollToPage(pageNum);
-        qCount.textContent = `${hitIndex+1}/${searchHits.length}`;
+        const rect = hit.element.getBoundingClientRect();
+        const wrapRect = wrap.getBoundingClientRect();
+        wrap.scrollTo({ top: wrap.scrollTop + rect.top - wrapRect.top - wrap.clientHeight/2, behavior: 'smooth' });
+        qCount.textContent = `1/${searchHits.length}`;
         showToast(`Found ${searchHits.length} matches`, 'success');
       } else {
         qCount.textContent = '0/0';
@@ -826,13 +858,16 @@
       setLoading(false);
     }
   }
-  
+
   function navSearch(delta){
     if (!searchHits.length) return;
     hitIndex = (hitIndex + delta + searchHits.length) % searchHits.length;
-    currentSearchMatch = searchHits[hitIndex];
-    pageNum = searchHits[hitIndex].page;
+    const hit = searchHits[hitIndex];
+    pageNum = hit.page;
     scrollToPage(pageNum);
+    const rect = hit.element.getBoundingClientRect();
+    const wrapRect = wrap.getBoundingClientRect();
+    wrap.scrollTo({ top: wrap.scrollTop + rect.top - wrapRect.top - wrap.clientHeight/2, behavior: 'smooth' });
     qCount.textContent = `${hitIndex+1}/${searchHits.length}`;
   }
 
