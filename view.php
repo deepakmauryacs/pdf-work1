@@ -292,6 +292,7 @@ $token = token_for($link['id'], $link['doc_id']);
     :root{ --topbar-h: 52px; }
     .shell{
       grid-template-columns: 1fr;   /* doc column only */
+      grid-template-rows: 1fr;      /* ensure single row layout */
       height:calc(100vh - var(--topbar-h));
     }
     .vbar{ display:none }
@@ -304,8 +305,10 @@ $token = token_for($link['id'], $link['doc_id']);
       box-shadow:24px 0 40px rgba(0,0,0,.35);
       border-right:1px solid var(--divider);
       z-index:60;
+      grid-row:1;
     }
     .shell:not(.collapsed) #sidebar{ transform: translateX(0) }
+    #doc{ grid-row:1; }
     .viewer{ width:min(100%, 100% - 24px); margin:18px auto }
     .page{ border-radius:12px }
     .watermark{ font-size:36px }
