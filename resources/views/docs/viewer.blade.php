@@ -186,15 +186,17 @@
     }
 
     .main{
-      display:grid; 
-      grid-template-rows:1fr auto; 
+      display:grid;
+      grid-template-rows:1fr auto;
       min-width:0;
+      min-height:0;
       position: relative;
     }
     .canvas-wrap{
       overflow:auto;
       padding:20px;
       position: relative;
+      height:100%;
     }
     #pdfContainer{
       display:flex;
