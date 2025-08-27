@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
   <style>
     html, body { height:100%; }
-    #viewer-container { height:100%; }
+    #viewer-container { height:100%; overflow:auto; }
   </style>
 </head>
 <body class="container-fluid h-100 py-3">
@@ -35,6 +35,8 @@ window.PDF_VIEWER = {
   filename: '{{ $doc->original_name }}'
 };
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script src="/js/pdf-viewer.js"></script>
 </body>
 </html>

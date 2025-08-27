@@ -10,12 +10,20 @@
       body: new URLSearchParams({ s: window.PDF_VIEWER.slug, nonce: window.PDF_VIEWER.nonce })
     });
     if (!res.ok) throw new Error('Unable to load PDF');
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const iframe = document.createElement('iframe');
-    iframe.src = blobUrl;
-    iframe.className = 'w-100 h-100 border-0';
-    document.getElementById('viewer-container').appendChild(iframe);
+    const buffer = await res.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    const container = document.getElementById('viewer-container');
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const viewport = page.getViewport({ scale: 1 });
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      canvas.className = 'd-block mb-3 mx-auto';
+      container.appendChild(canvas);
+      await page.render({ canvasContext: context, viewport }).promise;
+    }
   } catch(err) {
     alert(err.message || 'Error loading document');
   }
