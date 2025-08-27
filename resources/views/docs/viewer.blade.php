@@ -14,12 +14,23 @@
   <div class="row h-100">
     <div class="col-md-12 h-100">
       <div class="card h-100">
-        @if($allowDownload)
-        <div class="card-header d-flex justify-content-end">
-          <button id="downloadBtn" class="btn btn-sm btn-primary">Download</button>
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div class="btn-group" role="group">
+            <button id="prevBtn" class="btn btn-sm btn-secondary">&laquo;</button>
+            <button id="nextBtn" class="btn btn-sm btn-secondary">&raquo;</button>
+            <button id="zoomOutBtn" class="btn btn-sm btn-secondary">-</button>
+            <button id="zoomInBtn" class="btn btn-sm btn-secondary">+</button>
+          </div>
+          <div class="d-flex align-items-center">
+            <span id="pageIndicator" class="me-3 small text-muted"></span>
+            @if($allowDownload)
+              <button id="downloadBtn" class="btn btn-sm btn-primary">Download</button>
+            @endif
+          </div>
         </div>
-        @endif
-        <div id="viewer-container" class="h-100"></div>
+        <div id="viewer-container" class="h-100 d-flex align-items-center justify-content-center">
+          <canvas id="pdfCanvas" class="d-block"></canvas>
+        </div>
       </div>
     </div>
   </div>
