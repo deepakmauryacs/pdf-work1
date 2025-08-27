@@ -9,21 +9,28 @@ $docs = db_all("SELECT * FROM documents WHERE user_id=? ORDER BY id DESC", [$use
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head><body class="p-4">
+<div class="row"><div class="col-md-12"><div class="card p-4">
 <h3>My PDFs</h3>
-<form class="my-3" action="upload.php" method="post" enctype="multipart/form-data">
+<form id="uploadForm" class="my-3" action="upload.php" method="post" enctype="multipart/form-data">
   <input type="file" name="pdf" accept="application/pdf" required>
   <button class="btn btn-primary">Upload (max 50MB)</button>
 </form>
 
+<div id="linkResult" class="mb-3"></div>
+
 <table class="table table-bordered align-middle">
-  <thead><tr><th>PDF Name</th><th>Size</th><th>Action</th></tr></thead>
+  <thead><tr><th>PDF Name</th><th>Size</th><th>Uploaded</th><th>Action</th></tr></thead>
   <tbody>
-  <?php foreach($docs as $d): ?>
+  <?php foreach($docs as $d):
+        $ts = (int)explode('_', $d['filename'])[0];
+        $uploaded = date('d-m-Y', $ts);
+  ?>
     <tr>
       <td><?= htmlspecialchars($d['original_name']) ?></td>
       <td><?= humanSize($d['size_bytes']) ?></td>
+      <td><?= $uploaded ?></td>
       <td>
-        <form class="d-inline" action="link_create.php" method="post">
+        <form class="d-inline ajax-form" action="link_create.php" method="post">
           <input type="hidden" name="doc_id" value="<?= $d['id'] ?>">
           <input type="hidden" name="kind" value="view">
           <div class="d-inline-flex gap-2 align-items-center">
@@ -40,7 +47,7 @@ $docs = db_all("SELECT * FROM documents WHERE user_id=? ORDER BY id DESC", [$use
           </div>
         </form>
 
-        <form class="d-inline ms-2" action="link_create.php" method="post">
+        <form class="d-inline ms-2 ajax-form" action="link_create.php" method="post">
           <input type="hidden" name="doc_id" value="<?= $d['id'] ?>">
           <input type="hidden" name="kind" value="embed">
           <div class="d-inline-flex gap-2 align-items-center">
@@ -61,4 +68,32 @@ $docs = db_all("SELECT * FROM documents WHERE user_id=? ORDER BY id DESC", [$use
   <?php endforeach; ?>
   </tbody>
 </table>
+</div></div></div>
+
+<script>
+// upload form via AJAX with basic client-side validation
+document.getElementById('uploadForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  if(!this.pdf.files.length){ alert('Please select a PDF file.'); return; }
+  const fd=new FormData(this);
+  const resp=await fetch(this.action,{method:'POST',body:fd});
+  if(resp.ok){ location.reload(); }
+  else{ alert('Upload failed'); }
+});
+
+// link creation forms via AJAX
+document.querySelectorAll('.ajax-form').forEach(f=>{
+  f.addEventListener('submit', async e=>{
+    e.preventDefault();
+    const fd=new FormData(f);
+    if(!/^\d+$/.test(fd.get('doc_id'))){ alert('Invalid document'); return; }
+    const resp=await fetch(f.action,{method:'POST',body:fd});
+    if(!resp.ok){ alert('Server error'); return; }
+    const data=await resp.json();
+    let html='<p><a href="'+data.url+'" target="_blank">'+data.url+'</a></p>';
+    if(data.embed){ html+='<textarea class="form-control">'+data.embed+'</textarea>'; }
+    document.getElementById('linkResult').innerHTML=html;
+  });
+});
+</script>
 </body></html>
