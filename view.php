@@ -17,13 +17,6 @@ if (!$link) { http_response_code(404); exit('Link not found'); }
 if ((int)$link['allow_view'] !== 1) { http_response_code(403); exit('Viewing disabled'); }
 
 $token = token_for($link['id'], $link['doc_id']);
-
-// On mobile devices open the PDF directly using the browser's native viewer.
-$isMobile = isset($_SERVER['HTTP_USER_AGENT']) && preg_match('/Mobile|Android|iP(hone|od|ad)/i', $_SERVER['HTTP_USER_AGENT']);
-if ($isMobile) {
-  header('Location: ' . APP_BASE_URL . '/api/pdf.php?tok=' . urlencode($token));
-  exit;
-}
 ?>
 <!doctype html>
 <html lang="en">
