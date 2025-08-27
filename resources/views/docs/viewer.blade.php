@@ -91,7 +91,7 @@
     .thumb__meta{display:flex; justify-content:space-between; color:var(--muted); font-size:12px}
 
     .main{display:grid; grid-template-rows:1fr auto; min-width:0}
-    .canvas-wrap{display:grid; place-items:center; overflow:auto; padding:14px}
+    .canvas-wrap{display:grid; place-items:center; overflow:hidden; padding:14px}
     canvas#pdfCanvas{
       background:#0a0f1e; border-radius:14px; box-shadow:0 0 0 1px var(--border), inset 0 0 80px rgba(0,0,0,.18);
       max-width:100%;
@@ -118,6 +118,7 @@
       .topbar__shell{flex-direction:column; align-items:stretch; gap:10px; border-radius:0}
       .controls{justify-content:space-between}
       .filemeta__title{max-width:80vw}
+      body{font-size:16px}
       .canvas-wrap{padding:0}
       canvas#pdfCanvas{border-radius:0; box-shadow:none}
     }
@@ -387,6 +388,29 @@
   rotateBtn.onclick = ()=>{ rotation = (rotation + 90) % 360; queueRender(pageNum); };
   fsBtn.onclick     = ()=>{ const el=document.documentElement; if(!document.fullscreenElement){ el.requestFullscreen?.(); } else { document.exitFullscreen?.(); } };
   pageNumEl.onchange= (e)=>{ const v = clamp(parseInt(e.target.value||'1',10),1,pdfDoc.numPages); pageNum=v; queueRender(pageNum); };
+
+  // Scroll navigation (wheel)
+  let scrollTimer=null;
+  wrap.addEventListener('wheel', e=>{
+    e.preventDefault();
+    if(scrollTimer) return;
+    if(e.deltaY>0 && pageNum<pdfDoc.numPages){ pageNum++; queueRender(pageNum); }
+    if(e.deltaY<0 && pageNum>1){ pageNum--; queueRender(pageNum); }
+    scrollTimer=setTimeout(()=>scrollTimer=null,300);
+  }, {passive:false});
+
+  // Touch navigation (swipe)
+  let touchStartY=null;
+  wrap.addEventListener('touchstart', e=>{ touchStartY = e.touches[0].clientY; });
+  wrap.addEventListener('touchend', e=>{
+    if(touchStartY===null) return;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if(Math.abs(dy)>50){
+      if(dy<0 && pageNum<pdfDoc.numPages){ pageNum++; queueRender(pageNum); }
+      if(dy>0 && pageNum>1){ pageNum--; queueRender(pageNum); }
+    }
+    touchStartY=null;
+  });
 
   // Theme buttons
   themeDarkBtn.onclick  = ()=>{ document.body.classList.add('theme--dark');  document.body.classList.remove('theme--light'); };
