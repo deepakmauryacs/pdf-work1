@@ -20,6 +20,7 @@ const els = {
   zoomOut: $('zoomOut'),
   zoomSelect: $('zoomSelect'),
   fullscreenBtn: $('fullscreenBtn'),
+  drawerBackdrop: $('drawerBackdrop'),
 };
 
 // ----- state -----
@@ -205,6 +206,7 @@ function scheduleRerender(){
 // ----- sidebar toggle (fixed flow) -----
 (function initSidebarToggle(){
   const shell=document.querySelector('.shell');
+  const backdrop=els.drawerBackdrop;
   async function apply(collapsed){
     shell.classList.toggle('collapsed', collapsed);
     els.toggleSidebar.setAttribute('aria-pressed', (!collapsed).toString());
@@ -227,6 +229,7 @@ function scheduleRerender(){
   // apply initial (does nothing harmful before pages exist)
   apply(collapsed);
   els.toggleSidebar.addEventListener('click', ()=> apply(!shell.classList.contains('collapsed')));
+  backdrop?.addEventListener('click', ()=> apply(true));
 })();
 
 // ----- wiring -----
