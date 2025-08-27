@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\DocLink;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -105,15 +106,27 @@ class DocumentController extends Controller
     public function createLink($id, Request $request)
     {
         $doc = Document::findOrFail($id);
-        $ttlMinutes = (int) $request->input('ttl_min', 0); // 0 => never
-        $expiresAt  = $ttlMinutes > 0 ? now()->addMinutes($ttlMinutes) : null;
+
+        $validated = $request->validate([
+            'ttl_min'     => 'nullable|integer|min:0',
+            'max_views'   => 'nullable|integer|min:1',
+            'expiry_date' => 'nullable|date_format:d-m-Y',
+            'allow_download' => 'sometimes|boolean',
+        ]);
+
+        $expiresAt = null;
+        if (!empty($validated['expiry_date'])) {
+            $expiresAt = Carbon::createFromFormat('d-m-Y', $validated['expiry_date'])->endOfDay();
+        } elseif (!empty($validated['ttl_min']) && $validated['ttl_min'] > 0) {
+            $expiresAt = now()->addMinutes($validated['ttl_min']);
+        }
 
         $link = DocLink::create([
             'document_id'    => $doc->id,
             'slug'           => Str::random(40),
             'expires_at'     => $expiresAt,
             'allow_download' => $request->boolean('allow_download', false),
-            'max_views'      => $request->input('max_views'),
+            'max_views'      => $validated['max_views'] ?? null,
         ]);
 
         return response()->json([
@@ -154,6 +167,13 @@ class DocumentController extends Controller
             'size'           => filesize(public_path($publicRelPath)),
             'allow_download' => (bool) $request->boolean('allow_download', false),
         ]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'uploaded_id' => $doc->id,
+                'original_name' => $doc->original_name,
+            ]);
+        }
 
         return redirect()->route('documents.uploader')->with('uploaded_id', $doc->id);
     }
