@@ -7,20 +7,26 @@ license_check();
 
 // Endpoint used via AJAX to create shareable or embeddable links
 
-if($_SERVER['REQUEST_METHOD']!=='POST') { http_response_code(405); exit; }
+header('Content-Type: application/json');
+
+function fail($code,$msg){
+  http_response_code($code);
+  echo json_encode(['error'=>$msg]);
+  exit;
+}
+
+if($_SERVER['REQUEST_METHOD']!=='POST') { fail(405,'Method not allowed'); }
 $docId = (int)($_POST['doc_id']??0);
 $kind  = $_POST['kind']??'view';
 $allow_view = isset($_POST['allow_view']) ? 1 : 0;
 $allow_download = isset($_POST['allow_download']) ? 1 : 0;
 $allow_search = isset($_POST['allow_search']) ? 1 : 0;
 
-header('Content-Type: application/json');
-
-if($docId<=0){ http_response_code(422); echo json_encode(['error'=>'Invalid document']); exit; }
-if(!in_array($kind,['view','embed'],true)){ http_response_code(422); echo json_encode(['error'=>'Invalid kind']); exit; }
+if($docId<=0){ fail(422,'Invalid document'); }
+if(!in_array($kind,['view','embed'],true)){ fail(422,'Invalid kind'); }
 
 $doc = db_row("SELECT d.*, u.folder_slug FROM documents d JOIN users u ON u.id=d.user_id WHERE d.id=?", [$docId]);
-if(!$doc){ http_response_code(404); echo json_encode(['error'=>'Doc not found']); exit; }
+if(!$doc){ fail(404,'Doc not found'); }
 
 $slug = slug(10);
 db_exec("INSERT INTO links(doc_id,kind,slug,allow_view,allow_download,allow_search) VALUES(?,?,?,?,?,?)",

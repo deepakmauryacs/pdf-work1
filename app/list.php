@@ -75,10 +75,15 @@ $docs = db_all("SELECT * FROM documents WHERE user_id=? ORDER BY id DESC", [$use
 document.getElementById('uploadForm').addEventListener('submit', async function(e){
   e.preventDefault();
   if(!this.pdf.files.length){ alert('Please select a PDF file.'); return; }
+  const file=this.pdf.files[0];
+  if(file.type!=='application/pdf'){ alert('Only PDF allowed'); return; }
+  if(file.size>50*1024*1024){ alert('File too large (>50MB)'); return; }
   const fd=new FormData(this);
   const resp=await fetch(this.action,{method:'POST',body:fd});
-  if(resp.ok){ location.reload(); }
-  else{ alert('Upload failed'); }
+  let data=null;
+  try{ data=await resp.json(); }catch{}
+  if(resp.ok && data && data.ok){ location.reload(); }
+  else{ alert(data?.error || 'Upload failed'); }
 });
 
 // link creation forms via AJAX
@@ -88,8 +93,9 @@ document.querySelectorAll('.ajax-form').forEach(f=>{
     const fd=new FormData(f);
     if(!/^\d+$/.test(fd.get('doc_id'))){ alert('Invalid document'); return; }
     const resp=await fetch(f.action,{method:'POST',body:fd});
-    if(!resp.ok){ alert('Server error'); return; }
-    const data=await resp.json();
+    let data=null;
+    try{ data=await resp.json(); }catch{}
+    if(!resp.ok || data.error){ alert(data?.error || 'Server error'); return; }
     let html='<p><a href="'+data.url+'" target="_blank">'+data.url+'</a></p>';
     if(data.embed){ html+='<textarea class="form-control">'+data.embed+'</textarea>'; }
     document.getElementById('linkResult').innerHTML=html;
