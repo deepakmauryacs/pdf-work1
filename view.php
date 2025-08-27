@@ -34,6 +34,7 @@ $token = token_for($link['id'], $link['doc_id']);
     --topbar-h: 56px;
     --sidebar-w: 260px;
     --divider-w: 10px;
+    --vh: 1vh;
 
     /* DARK */
     --bg:#111622;
@@ -150,7 +151,7 @@ $token = token_for($link['id'], $link['doc_id']);
   .shell{
     display:grid;
     grid-template-columns: var(--sidebar-w) var(--divider-w) 1fr;
-    height:calc(100vh - var(--topbar-h));
+    height:calc(var(--vh, 1vh) * 100 - var(--topbar-h));
     transition:grid-template-columns .22s ease;
   }
   .vbar{ background:var(--divider) }
@@ -293,7 +294,7 @@ $token = token_for($link['id'], $link['doc_id']);
     .shell{
       grid-template-columns: 1fr;   /* doc column only */
       grid-template-rows: 1fr;      /* ensure single row layout */
-      height:calc(100vh - var(--topbar-h));
+      height:calc(var(--vh, 1vh) * 100 - var(--topbar-h));
     }
     .vbar{ display:none }
     #sidebar{
@@ -466,6 +467,14 @@ $token = token_for($link['id'], $link['doc_id']);
     });
 
   })();
+</script>
+<script>
+  // Adjust viewport height unit for mobile devices
+  function setVh(){
+    document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+  }
+  window.addEventListener('resize', setVh);
+  setVh();
 </script>
 </body>
 </html>
