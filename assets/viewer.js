@@ -214,7 +214,12 @@ function scheduleRerender(){
     scrollToPage(currentPage);
     setTimeout(()=>{ forceFullRerender(true); scrollToPage(currentPage); }, 120); // late pass
   }
-  let collapsed=false; try{ collapsed = localStorage.getItem('pdfv_sidebar')==='1'; }catch{}
+  // start collapsed by default so sidebar stays closed on first load, especially on mobile
+  let collapsed=true;
+  try {
+    const saved=localStorage.getItem('pdfv_sidebar');
+    if(saved!==null) collapsed = (saved==='1');
+  } catch {}
   // apply initial (does nothing harmful before pages exist)
   apply(collapsed);
   els.toggleSidebar.addEventListener('click', ()=> apply(!shell.classList.contains('collapsed')));
