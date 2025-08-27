@@ -1,3 +1,0 @@
-# WAMP-safe .htaccess
-RewriteEngine On
-RewriteRule ^storage/ - [F,L]
